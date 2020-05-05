@@ -1,64 +1,22 @@
 package main
 
 import (
-	"fmt"
-	"github.com/boltdb/bolt"
 	"go_project/SimplePublicChain/Basic-Prototype/BLC"
-	"log"
 )
 
 func main() {
-	////data string,height int64,prevBlockHash []byte
-	//block := BLC.NewBlock("Test", 1, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
-	//fmt.Printf("%d\n", block.Nonce)
-	//fmt.Printf("%x\n", block.Hash)
+	// 创世区块
+	blockchain := BLC.CreateBlockChainWithGensisBlock()
+	defer blockchain.DB.Close()
 
-	// 创建或者打开数据库
-	db, err := bolt.Open("my.db", 0600, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
+	//新区块
+	blockchain.AddBlockToBlockChain("Send 100RMB To sxz")
 
-	//// 更新数据库
-	//err = db.Update(func(tx *bolt.Tx) error {
-	//
-	//	// 取表对象
-	//	b := tx.Bucket([]byte("blocks"))
-	//
-	//	if b == nil {
-	//		b, err = tx.CreateBucket([]byte("blocks"))
-	//		if err != nil {
-	//			log.Panic("Blocks table create failed......")
-	//		}
-	//	}
-	//
-	//	err = b.Put([]byte("l"), block.Serialize())
-	//	if err != nil {
-	//		log.Panic(err)
-	//	}
-	//
-	//	return nil
-	//})
-	//
-	//if err != nil {
-	//	log.Panic(err)
-	//}
+	blockchain.AddBlockToBlockChain("Send 200RMB To zyy")
 
-	err = db.View(func(tx *bolt.Tx) error {
+	blockchain.AddBlockToBlockChain("Send 300RMB To xtu")
 
-		b := tx.Bucket([]byte("blocks"))
-		if b != nil {
-			blockData := b.Get([]byte("l"))
-			//fmt.Println(blockData)
-			//fmt.Printf("%s\n",blockData)
-			block := BLC.DeserializeBlock(blockData)
-			fmt.Printf("%v\n", block)
-		}
-		return nil
-	})
+	blockchain.AddBlockToBlockChain("Send 50RMB To wnm")
 
-	if err != nil {
-		log.Panic(err)
-	}
+	blockchain.PrintChain()
 }
