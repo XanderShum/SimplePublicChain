@@ -5,6 +5,7 @@ import (
 	"github.com/boltdb/bolt"
 	"log"
 	"math/big"
+	"os"
 	"time"
 )
 
@@ -16,7 +17,78 @@ type BlockChain struct {
 	DB  *bolt.DB
 }
 
-func CreateBlockChainWithGensisBlock() *BlockChain {
+// 迭代器
+func (blockchain *BlockChain) Iterator() *BlockChainIterator {
+
+	return &BlockChainIterator{blockchain.Tip, blockchain.DB}
+}
+
+// 判断数据库是否存在
+func dbExists() bool {
+	if _, err := os.Stat(dbName); os.IsNotExist(err) {
+		return false
+	}
+
+	return true
+}
+
+// 遍历输出所有区块的信息
+func (blc *BlockChain) PrintChain() {
+
+	fmt.Println("PrintchainPrintchainPrintchainPrintchain")
+	blockchainIterator := blc.Iterator()
+
+	for {
+		block := blockchainIterator.Next()
+
+		fmt.Printf("Height：%d\n", block.Height)
+		fmt.Printf("PrevBlockHash：%x\n", block.PreBlockHash)
+		fmt.Printf("Data：%s\n", block.Data)
+		fmt.Printf("Timestamp：%s\n", time.Unix(block.Timestamp, 0).Format("2006-01-02 03:04:05 PM"))
+		fmt.Printf("Hash：%x\n", block.Hash)
+		fmt.Printf("Nonce：%d\n", block.Nonce)
+
+		fmt.Println()
+
+		var hashInt big.Int
+		hashInt.SetBytes(block.PreBlockHash)
+
+		//   -1 if x <  y
+		//    0 if x == y
+		//   +1 if x >  y
+
+		if big.NewInt(0).Cmp(&hashInt) == 0 {
+			break
+		}
+	}
+}
+
+func CreateBlockChainWithGenesisBlock() *BlockChain {
+	if dbExists() {
+		fmt.Println("创世区块已经存在......")
+
+		db, err := bolt.Open(dbName, 0600, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var blockchain *BlockChain
+
+		err = db.View(func(tx *bolt.Tx) error {
+
+			b := tx.Bucket([]byte(blockTableName))
+
+			hash := b.Get([]byte("l"))
+
+			blockchain = &BlockChain{hash, db}
+			return nil
+		})
+		if err != nil {
+			log.Panic(err)
+		}
+		return blockchain
+	}
+
 	// 创建或者打开数据库
 	db, err := bolt.Open(dbName, 0600, nil)
 	if err != nil {
@@ -72,7 +144,7 @@ func (blc *BlockChain) AddBlockToBlockChain(data string) {
 		//2. 创建新区块
 		if b != nil {
 
-			// ⚠️，先获取最新区块
+			//先获取最新区块
 			blockBytes := b.Get(blc.Tip)
 			// 反序列化
 			block := DeserializeBlock(blockBytes)
@@ -97,48 +169,5 @@ func (blc *BlockChain) AddBlockToBlockChain(data string) {
 
 	if err != nil {
 		log.Panic(err)
-	}
-}
-func (blc *BlockChain) PrintChain() {
-	var block *Block
-	var currentHash []byte = blc.Tip
-
-	for {
-		err := blc.DB.View(func(tx *bolt.Tx) error {
-
-			//1. 表
-			b := tx.Bucket([]byte(blockTableName))
-			if b != nil {
-				// 获取当前区块的字节数组
-				blockBytes := b.Get(currentHash)
-				// 反序列化
-				block = DeserializeBlock(blockBytes)
-
-				fmt.Printf("Height：%d\n", block.Height)
-				fmt.Printf("PrevBlockHash：%x\n", block.PreBlockHash)
-				fmt.Printf("Data：%s\n", block.Data)
-				fmt.Printf("Timestamp：%s\n", time.Unix(block.Timestamp, 0).Format("2006-01-02 03:04:05 PM"))
-				fmt.Printf("Hash：%x\n", block.Hash)
-				fmt.Printf("Nonce：%d\n", block.Nonce)
-
-			}
-
-			return nil
-		})
-
-		fmt.Println()
-
-		if err != nil {
-			log.Panic(err)
-		}
-
-		var hashInt big.Int
-		hashInt.SetBytes(block.PreBlockHash)
-
-		if big.NewInt(0).Cmp(&hashInt) == 0 {
-			break
-		}
-
-		currentHash = block.PreBlockHash
 	}
 }

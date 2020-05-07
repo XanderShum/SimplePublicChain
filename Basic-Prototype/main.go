@@ -5,18 +5,9 @@ import (
 )
 
 func main() {
-	// 创世区块
-	blockchain := BLC.CreateBlockChainWithGensisBlock()
-	defer blockchain.DB.Close()
+	blockchain := BLC.CreateBlockChainWithGenesisBlock()
 
-	//新区块
-	blockchain.AddBlockToBlockChain("Send 100RMB To sxz")
+	cli := BLC.CLI{blockchain}
 
-	blockchain.AddBlockToBlockChain("Send 200RMB To zyy")
-
-	blockchain.AddBlockToBlockChain("Send 300RMB To xtu")
-
-	blockchain.AddBlockToBlockChain("Send 50RMB To wnm")
-
-	blockchain.PrintChain()
+	cli.Run()
 }
