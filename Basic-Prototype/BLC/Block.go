@@ -2,6 +2,7 @@ package BLC
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
 	"log"
 	"time"
@@ -13,7 +14,7 @@ type Block struct {
 	//上一个区块的hash
 	PreBlockHash []byte
 	//交易数据
-	Data []byte
+	Txs []*Transaction
 	//时间戳
 	Timestamp int64
 	//本区块hash
@@ -22,9 +23,24 @@ type Block struct {
 	Nonce int64
 }
 
+// 需要将Txs转换成[]byte
+func (block *Block) HashTransactions() []byte {
+
+	var txHashes [][]byte
+	var txHash [32]byte
+
+	for _, tx := range block.Txs {
+		txHashes = append(txHashes, tx.TxHash)
+	}
+	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
+
+	return txHash[:]
+
+}
+
 //创建新的区块
-func NewBlock(data string, height int64, prevBlockHash []byte) *Block {
-	block := &Block{height, prevBlockHash, []byte(data), time.Now().Unix(), nil, 0}
+func NewBlock(txs []*Transaction, height int64, prevBlockHash []byte) *Block {
+	block := &Block{height, prevBlockHash, txs, time.Now().Unix(), nil, 0}
 
 	pow := NewProofOfWork(block)
 	hash, nonce := pow.Run()
@@ -35,8 +51,8 @@ func NewBlock(data string, height int64, prevBlockHash []byte) *Block {
 }
 
 //创建创世区块
-func CreateGenesisBlock(data string) *Block {
-	return NewBlock(data, 1, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+func CreateGenesisBlock(txs []*Transaction) *Block {
+	return NewBlock(txs, 1, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 }
 
 // 将区块序列化成字节数组

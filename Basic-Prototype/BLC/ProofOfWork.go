@@ -19,23 +19,13 @@ func (pow *ProofOfWork) prepareData(nonce int64) []byte {
 		[][]byte{
 			IntToHex(pow.Block.Height),
 			pow.Block.PreBlockHash,
-			pow.Block.Data,
+			pow.Block.HashTransactions(),
 			IntToHex(pow.Block.Timestamp),
 			IntToHex(nonce),
 		},
 		[]byte{},
 	)
 	return data
-}
-
-func (pow *ProofOfWork) IsValid() bool {
-	var hashInt big.Int
-	hashInt.SetBytes(pow.Block.Hash)
-
-	if pow.target.Cmp(&hashInt) == 1 {
-		return true
-	}
-	return false
 }
 
 func (pow *ProofOfWork) Run() ([]byte, int64) {

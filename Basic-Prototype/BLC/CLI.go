@@ -7,9 +7,7 @@ import (
 	"os"
 )
 
-type CLI struct {
-	BC *BlockChain
-}
+type CLI struct{}
 
 func printUsage() {
 
@@ -27,12 +25,35 @@ func isValidArgs() {
 	}
 }
 
-func (cli *CLI) addBlock(data string) {
-	cli.BC.AddBlockToBlockChain(data)
+func (cli *CLI) addBlock(txs []*Transaction) {
+	if DBExists() == false {
+		fmt.Println("数据不存在.......")
+		os.Exit(1)
+	}
+
+	blockchain := BlockchainObject()
+
+	defer blockchain.DB.Close()
+
+	blockchain.AddBlockToBlockChain(txs)
 }
 
 func (cli *CLI) printchain() {
-	cli.BC.PrintChain()
+	if DBExists() == false {
+		fmt.Println("数据不存在.......")
+		os.Exit(1)
+	}
+
+	blockchain := BlockchainObject()
+
+	defer blockchain.DB.Close()
+
+	blockchain.PrintChain()
+}
+
+func (cli *CLI) createGenesisBlockchain(address string) {
+
+	CreateBlockChainWithGenesisBlock(address)
 }
 
 func (cli *CLI) Run() {
@@ -40,8 +61,10 @@ func (cli *CLI) Run() {
 
 	addBlockCmd := flag.NewFlagSet("addblock", flag.ExitOnError)
 	printChainCmd := flag.NewFlagSet("printchain", flag.ExitOnError)
+	createBlockChainCmd := flag.NewFlagSet("createblockchain", flag.ExitOnError)
 
 	flagAddBlockData := addBlockCmd.String("data", "http://liyuechun.org", "交易数据......")
+	flagCreateBlockchainWithAddress := createBlockChainCmd.String("address", "", "创建创世区块的地址")
 
 	switch os.Args[1] {
 	case "addblock":
@@ -66,12 +89,23 @@ func (cli *CLI) Run() {
 		}
 
 		//fmt.Println(*flagAddBlockData)
-		cli.addBlock(*flagAddBlockData)
+		cli.addBlock([]*Transaction{})
 	}
 
 	if printChainCmd.Parsed() {
 
 		//fmt.Println("输出所有区块的数据........")
 		cli.printchain()
+	}
+
+	if createBlockChainCmd.Parsed() {
+
+		if *flagCreateBlockchainWithAddress == "" {
+			fmt.Println("地址不能为空....")
+			printUsage()
+			os.Exit(1)
+		}
+
+		cli.createGenesisBlockchain(*flagCreateBlockchainWithAddress)
 	}
 }
