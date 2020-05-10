@@ -189,3 +189,14 @@ func BlockchainObject() *BlockChain {
 
 	return &BlockChain{tip, db}
 }
+
+// 挖掘新的区块
+func MineNewBlock(from []string, to []string, amount []string) {
+
+	fmt.Println(from)
+	fmt.Println(to)
+	fmt.Println(amount)
+
+	//1.
+
+}

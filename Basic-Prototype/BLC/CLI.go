@@ -56,19 +56,29 @@ func (cli *CLI) createGenesisBlockchain(address string) {
 	CreateBlockChainWithGenesisBlock(address)
 }
 
+// 转账
+
+func (cli *CLI) send(from []string, to []string, amount []string) {
+
+	MineNewBlock(from, to, amount)
+}
+
 func (cli *CLI) Run() {
 	isValidArgs()
 
-	addBlockCmd := flag.NewFlagSet("addblock", flag.ExitOnError)
+	sendBlockCmd := flag.NewFlagSet("send", flag.ExitOnError)
 	printChainCmd := flag.NewFlagSet("printchain", flag.ExitOnError)
-	createBlockChainCmd := flag.NewFlagSet("createblockchain", flag.ExitOnError)
+	createBlockchainCmd := flag.NewFlagSet("createblockchain", flag.ExitOnError)
 
-	flagAddBlockData := addBlockCmd.String("data", "http://liyuechun.org", "交易数据......")
-	flagCreateBlockchainWithAddress := createBlockChainCmd.String("address", "", "创建创世区块的地址")
+	flagFrom := sendBlockCmd.String("from", "", "转账源地址......")
+	flagTo := sendBlockCmd.String("to", "", "转账目的地地址......")
+	flagAmount := sendBlockCmd.String("amount", "", "转账金额......")
+
+	flagCreateBlockchainWithAddress := createBlockchainCmd.String("address", "", "创建创世区块的地址")
 
 	switch os.Args[1] {
-	case "addblock":
-		err := addBlockCmd.Parse(os.Args[2:])
+	case "send":
+		err := sendBlockCmd.Parse(os.Args[2:])
 		if err != nil {
 			log.Panic(err)
 		}
@@ -77,19 +87,37 @@ func (cli *CLI) Run() {
 		if err != nil {
 			log.Panic(err)
 		}
+	case "createblockchain":
+		err := createBlockchainCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
 	default:
 		printUsage()
 		os.Exit(1)
 	}
 
-	if addBlockCmd.Parsed() {
-		if *flagAddBlockData == "" {
+	if sendBlockCmd.Parsed() {
+		if *flagFrom == "" || *flagTo == "" || *flagAmount == "" {
 			printUsage()
 			os.Exit(1)
 		}
 
 		//fmt.Println(*flagAddBlockData)
-		cli.addBlock([]*Transaction{})
+		//cli.addBlock([]*Transaction{})
+
+		//fmt.Println(*flagFrom)
+		//fmt.Println(*flagTo)
+		//fmt.Println(*flagAmount)
+
+		//fmt.Println(JSONToArray(*flagFrom))
+		//fmt.Println(JSONToArray(*flagTo))
+		//fmt.Println(JSONToArray(*flagAmount))
+
+		from := JSONToArray(*flagFrom)
+		to := JSONToArray(*flagTo)
+		amount := JSONToArray(*flagAmount)
+		cli.send(from, to, amount)
 	}
 
 	if printChainCmd.Parsed() {
@@ -98,7 +126,7 @@ func (cli *CLI) Run() {
 		cli.printchain()
 	}
 
-	if createBlockChainCmd.Parsed() {
+	if createBlockchainCmd.Parsed() {
 
 		if *flagCreateBlockchainWithAddress == "" {
 			fmt.Println("地址不能为空....")
@@ -108,4 +136,5 @@ func (cli *CLI) Run() {
 
 		cli.createGenesisBlockchain(*flagCreateBlockchainWithAddress)
 	}
+
 }
