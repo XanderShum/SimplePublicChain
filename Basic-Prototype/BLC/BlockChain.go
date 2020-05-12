@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -80,7 +81,7 @@ func (blc *BlockChain) PrintChain() {
 	}
 }
 
-func CreateBlockChainWithGenesisBlock(address string) {
+func CreateBlockChainWithGenesisBlock(address string) *BlockChain {
 	// 判断数据库是否存在
 	if DBExists() {
 		fmt.Println("创世区块已经存在.......")
@@ -94,7 +95,7 @@ func CreateBlockChainWithGenesisBlock(address string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	var genesisHash []byte
 	err = db.Update(func(tx *bolt.Tx) error {
 
 		// 创建数据库表
@@ -121,10 +122,12 @@ func CreateBlockChainWithGenesisBlock(address string) {
 			if err != nil {
 				log.Panic(err)
 			}
+			genesisHash = genesisBlock.Hash
 		}
 
 		return nil
 	})
+	return &BlockChain{genesisHash, db}
 
 }
 
@@ -190,13 +193,62 @@ func BlockchainObject() *BlockChain {
 	return &BlockChain{tip, db}
 }
 
+func UnSpentTransationsWithAdress(address string) []*Transaction {
+
+	return nil
+}
+
 // 挖掘新的区块
-func MineNewBlock(from []string, to []string, amount []string) {
+func (blockchain *BlockChain) MineNewBlock(from []string, to []string, amount []string) {
+	//1.建立一笔交易
 
 	fmt.Println(from)
 	fmt.Println(to)
 	fmt.Println(amount)
 
-	//1.
+	value, _ := strconv.Atoi(amount[0])
 
+	tx := NewSimpleTransaction(from[0], to[0], value)
+	fmt.Println(tx)
+
+	//1. 通过相关算法建立Transaction数组
+
+	var txs []*Transaction
+	txs = append(txs, tx)
+
+	var block *Block
+
+	blockchain.DB.View(func(tx *bolt.Tx) error {
+
+		b := tx.Bucket([]byte(blockTableName))
+		if b != nil {
+
+			hash := b.Get([]byte("l"))
+
+			blockBytes := b.Get(hash)
+
+			block = DeserializeBlock(blockBytes)
+
+		}
+
+		return nil
+	})
+
+	//2. 建立新的区块
+	block = NewBlock(txs, block.Height+1, block.Hash)
+
+	//将新区块存储到数据库
+	blockchain.DB.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(blockTableName))
+		if b != nil {
+
+			b.Put(block.Hash, block.Serialize())
+
+			b.Put([]byte("l"), block.Hash)
+
+			blockchain.Tip = block.Hash
+
+		}
+		return nil
+	})
 }

@@ -25,19 +25,6 @@ func isValidArgs() {
 	}
 }
 
-func (cli *CLI) addBlock(txs []*Transaction) {
-	if DBExists() == false {
-		fmt.Println("数据不存在.......")
-		os.Exit(1)
-	}
-
-	blockchain := BlockchainObject()
-
-	defer blockchain.DB.Close()
-
-	blockchain.AddBlockToBlockChain(txs)
-}
-
 func (cli *CLI) printchain() {
 	if DBExists() == false {
 		fmt.Println("数据不存在.......")
@@ -52,15 +39,23 @@ func (cli *CLI) printchain() {
 }
 
 func (cli *CLI) createGenesisBlockchain(address string) {
-
-	CreateBlockChainWithGenesisBlock(address)
+	blockchain := CreateBlockChainWithGenesisBlock(address)
+	defer blockchain.DB.Close()
 }
 
 // 转账
 
 func (cli *CLI) send(from []string, to []string, amount []string) {
 
-	MineNewBlock(from, to, amount)
+	if DBExists() == false {
+		fmt.Println("数据不存在.......")
+		os.Exit(1)
+	}
+
+	blockchain := BlockchainObject()
+	defer blockchain.DB.Close()
+
+	blockchain.MineNewBlock(from, to, amount)
 }
 
 func (cli *CLI) Run() {

@@ -17,11 +17,12 @@ type ProofOfWork struct {
 func (pow *ProofOfWork) prepareData(nonce int64) []byte {
 	data := bytes.Join(
 		[][]byte{
-			IntToHex(pow.Block.Height),
 			pow.Block.PreBlockHash,
 			pow.Block.HashTransactions(),
 			IntToHex(pow.Block.Timestamp),
+			IntToHex(int64(targetBit)),
 			IntToHex(nonce),
+			IntToHex(pow.Block.Height),
 		},
 		[]byte{},
 	)
