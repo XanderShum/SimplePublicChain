@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/gob"
+	"fmt"
 	"log"
 	"time"
 )
@@ -40,12 +41,19 @@ func (block *Block) HashTransactions() []byte {
 
 //创建新的区块
 func NewBlock(txs []*Transaction, height int64, prevBlockHash []byte) *Block {
+	//创建区块
 	block := &Block{height, prevBlockHash, txs, time.Now().Unix(), nil, 0}
 
+	// 调用工作量证明的方法并且返回有效的Hash和Nonce
 	pow := NewProofOfWork(block)
+
+	// 挖矿验证
 	hash, nonce := pow.Run()
-	block.Hash = hash
+
+	block.Hash = hash[:]
 	block.Nonce = nonce
+
+	fmt.Println()
 
 	return block
 }

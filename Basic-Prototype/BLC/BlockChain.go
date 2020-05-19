@@ -1,6 +1,8 @@
 package BLC
 
 import (
+	"bytes"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"github.com/boltdb/bolt"
@@ -57,13 +59,13 @@ func (blc *BlockChain) PrintChain() {
 			for _, in := range tx.Vins {
 				fmt.Printf("%x\n", in.TxHash)
 				fmt.Printf("%d\n", in.Vout)
-				fmt.Printf("%s\n", in.ScriptSig)
+				fmt.Printf("%s\n", in.PublicKey)
 			}
 
 			fmt.Println("Vouts:")
 			for _, out := range tx.Vouts {
 				fmt.Println(out.Value)
-				fmt.Println(out.ScriptPubKey)
+				fmt.Println(out.Ripemd160Hash)
 			}
 		}
 
@@ -209,7 +211,10 @@ func (blockchain *BlockChain) UnUTXOs(address string, txs []*Transaction) []*UTX
 		if tx.IsCoinbaseTransaction() == false {
 			for _, in := range tx.Vins {
 				//是否能够解锁
-				if in.UnLockWithAddress(address) {
+				publicKeyHash := Base58Decode([]byte(address))
+
+				ripemd160Hash := publicKeyHash[1 : len(publicKeyHash)-4]
+				if in.UnLockRipemd160Hash(ripemd160Hash) {
 
 					key := hex.EncodeToString(in.TxHash)
 
@@ -285,13 +290,16 @@ func (blockchain *BlockChain) UnUTXOs(address string, txs []*Transaction) []*UTX
 			if tx.IsCoinbaseTransaction() == false {
 				for _, in := range tx.Vins {
 					//是否能够解锁
-					if in.UnLockWithAddress(address) {
+					publicKeyHash := Base58Decode([]byte(address))
+
+					ripemd160Hash := publicKeyHash[1 : len(publicKeyHash)-4]
+
+					if in.UnLockRipemd160Hash(ripemd160Hash) {
 
 						key := hex.EncodeToString(in.TxHash)
 
 						spentTXOutputs[key] = append(spentTXOutputs[key], in.Vout)
 					}
-
 				}
 			}
 
@@ -438,7 +446,14 @@ func (blockchain *BlockChain) MineNewBlock(from []string, to []string, amount []
 
 		return nil
 	})
+	// 在建立新区块之前对txs进行签名验证
 
+	for _, tx := range txs {
+
+		if blockchain.VerifyTransaction(tx) != true {
+			log.Panic("ERROR: Invalid transaction")
+		}
+	}
 	//2. 建立新的区块
 	block = NewBlock(txs, block.Height+1, block.Hash)
 
@@ -472,4 +487,64 @@ func (blockchain *BlockChain) GetBalance(address string) int64 {
 	}
 
 	return amount
+}
+
+func (bclockchain *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey) {
+
+	if tx.IsCoinbaseTransaction() {
+		return
+	}
+
+	prevTXs := make(map[string]Transaction)
+
+	for _, vin := range tx.Vins {
+		prevTX, err := bclockchain.FindTransaction(vin.TxHash)
+		if err != nil {
+			log.Panic(err)
+		}
+		prevTXs[hex.EncodeToString(prevTX.TxHash)] = prevTX
+	}
+
+	tx.Sign(privKey, prevTXs)
+
+}
+
+func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
+
+	bci := bc.Iterator()
+
+	for {
+		block := bci.Next()
+
+		for _, tx := range block.Txs {
+			if bytes.Compare(tx.TxHash, ID) == 0 {
+				return *tx, nil
+			}
+		}
+
+		var hashInt big.Int
+		hashInt.SetBytes(block.PreBlockHash)
+
+		if big.NewInt(0).Cmp(&hashInt) == 0 {
+			break
+		}
+	}
+
+	return Transaction{}, nil
+}
+
+// 验证数字签名
+func (bc *BlockChain) VerifyTransaction(tx *Transaction) bool {
+
+	prevTXs := make(map[string]Transaction)
+
+	for _, vin := range tx.Vins {
+		prevTX, err := bc.FindTransaction(vin.TxHash)
+		if err != nil {
+			log.Panic(err)
+		}
+		prevTXs[hex.EncodeToString(prevTX.TxHash)] = prevTX
+	}
+
+	return tx.Verify(prevTXs)
 }

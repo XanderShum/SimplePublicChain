@@ -4,9 +4,9 @@ import "fmt"
 
 func (cli *CLI) createWallet() {
 
-	wallets := NewWallets()
+	wallets, _ := NewWallets()
 
 	wallets.CreateNewWallet()
 
-	fmt.Println(wallets.Wallets)
+	fmt.Println(len(wallets.WalletsMap))
 }
