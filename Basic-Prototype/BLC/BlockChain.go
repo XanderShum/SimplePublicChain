@@ -413,15 +413,13 @@ func (blockchain *BlockChain) MineNewBlock(from []string, to []string, amount []
 
 	//1.建立一笔交易
 
-	fmt.Println(from)
-	fmt.Println(to)
-	fmt.Println(amount)
+	utxoSet := &UTXOSet{blockchain}
 
 	var txs []*Transaction
 
 	for index, address := range from {
 		value, _ := strconv.Atoi(amount[index])
-		tx := NewSimpleTransaction(address, to[index], value, blockchain, txs)
+		tx := NewSimpleTransaction(address, to[index], int64(value), utxoSet, txs)
 		txs = append(txs, tx)
 		//fmt.Println(tx)
 	}
@@ -448,14 +446,20 @@ func (blockchain *BlockChain) MineNewBlock(from []string, to []string, amount []
 
 		return nil
 	})
+
 	// 在建立新区块之前对txs进行签名验证
+
+	_txs := []*Transaction{}
 
 	for _, tx := range txs {
 
-		if blockchain.VerifyTransaction(tx) != true {
+		if blockchain.VerifyTransaction(tx, _txs) != true {
 			log.Panic("ERROR: Invalid transaction")
 		}
+
+		_txs = append(_txs, tx)
 	}
+
 	//2. 建立新的区块
 	block = NewBlock(txs, block.Height+1, block.Hash)
 
@@ -491,7 +495,7 @@ func (blockchain *BlockChain) GetBalance(address string) int64 {
 	return amount
 }
 
-func (bclockchain *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey) {
+func (bclockchain *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey, txs []*Transaction) {
 
 	if tx.IsCoinbaseTransaction() {
 		return
@@ -500,7 +504,7 @@ func (bclockchain *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.Pr
 	prevTXs := make(map[string]Transaction)
 
 	for _, vin := range tx.Vins {
-		prevTX, err := bclockchain.FindTransaction(vin.TxHash)
+		prevTX, err := bclockchain.FindTransaction(vin.TxHash, txs)
 		if err != nil {
 			log.Panic(err)
 		}
@@ -511,7 +515,13 @@ func (bclockchain *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.Pr
 
 }
 
-func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
+func (bc *BlockChain) FindTransaction(ID []byte, txs []*Transaction) (Transaction, error) {
+
+	for _, tx := range txs {
+		if bytes.Compare(tx.TxHash, ID) == 0 {
+			return *tx, nil
+		}
+	}
 
 	bci := bc.Iterator()
 
@@ -536,12 +546,12 @@ func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
 }
 
 // 验证数字签名
-func (bc *BlockChain) VerifyTransaction(tx *Transaction) bool {
+func (bc *BlockChain) VerifyTransaction(tx *Transaction, txs []*Transaction) bool {
 
 	prevTXs := make(map[string]Transaction)
 
 	for _, vin := range tx.Vins {
-		prevTX, err := bc.FindTransaction(vin.TxHash)
+		prevTX, err := bc.FindTransaction(vin.TxHash, txs)
 		if err != nil {
 			log.Panic(err)
 		}
@@ -566,7 +576,7 @@ func (blc *BlockChain) FindUTXOMap() map[string]*TXOutputs {
 
 		for i := len(block.Txs) - 1; i >= 0; i-- {
 
-			txOutputs := &TXOutputs{[]*TXOutput{}}
+			txOutputs := &TXOutputs{[]*UTXO{}}
 
 			tx := block.Txs[i]
 
@@ -584,6 +594,13 @@ func (blc *BlockChain) FindUTXOMap() map[string]*TXOutputs {
 
 		WorkOutLoop:
 			for index, out := range tx.Vouts {
+
+				if tx.IsCoinbaseTransaction() {
+
+					fmt.Println("IsCoinbaseTransaction")
+					fmt.Println(out)
+					fmt.Println(txHash)
+				}
 
 				txInputs := spentableUTXOsMap[txHash]
 
@@ -606,11 +623,13 @@ func (blc *BlockChain) FindUTXOMap() map[string]*TXOutputs {
 					}
 
 					if isSpent == false {
-						txOutputs.TxOutputs = append(txOutputs.TxOutputs, out)
+						utxo := &UTXO{tx.TxHash, index, out}
+						txOutputs.UTXOS = append(txOutputs.UTXOS, utxo)
 					}
 
 				} else {
-					txOutputs.TxOutputs = append(txOutputs.TxOutputs, out)
+					utxo := &UTXO{tx.TxHash, index, out}
+					txOutputs.UTXOS = append(txOutputs.UTXOS, utxo)
 				}
 
 			}

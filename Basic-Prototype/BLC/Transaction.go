@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"log"
 	"math/big"
+	"time"
 )
 
 // UTXO
@@ -60,15 +61,16 @@ func (tx *Transaction) HashTransaction() {
 	if err != nil {
 		log.Panic(err)
 	}
+	resultBytes := bytes.Join([][]byte{IntToHex(time.Now().Unix()), result.Bytes()}, []byte{})
 
-	hash := sha256.Sum256(result.Bytes())
+	hash := sha256.Sum256(resultBytes)
 
 	tx.TxHash = hash[:]
 }
 
 //2. 转账时产生的Transaction
 
-func NewSimpleTransaction(from string, to string, amount int, blockchain *BlockChain, txs []*Transaction) *Transaction {
+func NewSimpleTransaction(from string, to string, amount int64, utxoSet *UTXOSet, txs []*Transaction) *Transaction {
 
 	//$ ./bc send -from '["juncheng"]' -to '["zhangqiang"]' -amount '["2"]'
 	//	[juncheng]
@@ -77,7 +79,7 @@ func NewSimpleTransaction(from string, to string, amount int, blockchain *BlockC
 	wallets, _ := NewWallets()
 	wallet := wallets.WalletsMap[from]
 	// 通过一个函数，返回
-	money, spendableUTXODic := blockchain.FindSpendableUTXOS(from, amount, txs)
+	money, spendableUTXODic := utxoSet.FindSpendableUTXOS(from, amount, txs)
 	//
 	//	{hash1:[0],hash2:[2,3]}
 
@@ -108,7 +110,7 @@ func NewSimpleTransaction(from string, to string, amount int, blockchain *BlockC
 	tx.HashTransaction()
 
 	//进行签名
-	blockchain.SignTransaction(tx, wallet.PrivateKey)
+	utxoSet.Blockchain.SignTransaction(tx, wallet.PrivateKey, txs)
 
 	return tx
 
